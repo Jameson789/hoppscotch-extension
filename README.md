@@ -29,6 +29,6 @@ Contribute to Hoppscotch: <a href="https://github.com/hoppscotch/hoppscotch">htt
 
 Sponsor Hoppscotch: [OpenCollective](https://opencollective.com/hoppscotch), [Github Sponsors](https://github.com/sponsors/hoppscotch)
 
-If you liked what you saw, please consider sponsoring, helps me keep the lights on!
+If you liked what you saw, please consider sponsoring, helps me keep the lights on!!
 
 **Happy Coding!!! ❤️**
