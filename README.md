@@ -31,4 +31,6 @@ Sponsor Hoppscotch: [OpenCollective](https://opencollective.com/hoppscotch), [Gi
 
 If you liked what you saw, please consider sponsoring, helps me keep the lights on!
 
+Danny's Changes to the README :)
+
 **Happy Coding!!! ❤️**
