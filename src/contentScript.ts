@@ -1,5 +1,7 @@
+import { rejects } from "assert"
 import hookContent from "bundle-text:./hookContent.js"
 import hookContentInvalidOrigin from "bundle-text:./hookContentInvalidOrigin.js"
+import { resolve } from "path"
 
 declare global {
   interface Window {
@@ -16,7 +18,7 @@ function getOriginList(): Promise<string[]> {
   return new Promise((resolve, reject) => {
     chrome.storage.sync.get((items) => {
       let originList: string[] = JSON.parse(items["originList"])
-
+      
       resolve(originList)
     })
   })
@@ -24,9 +26,8 @@ function getOriginList(): Promise<string[]> {
 
 async function injectHoppExtensionHook() {
   let originList = await getOriginList()
-
+  
   let url = new URL(window.location.href)
-
   const originType = originList.includes(url.origin)
     ? "VALID_ORIGIN"
     : "UNKNOWN_ORIGIN"
@@ -46,8 +47,9 @@ async function injectHoppExtensionHook() {
   }
 }
 
+
 function main() {
-  // check if the content script is already injected to avoid  multiple injections side effects
+  // Check if the content script is already injected to avoid multiple injections side effects
   if (window.HOPP_CONTENT_SCRIPT_EXECUTED) {
     return
   }
@@ -55,7 +57,7 @@ function main() {
   window.HOPP_CONTENT_SCRIPT_EXECUTED = true
 
   /**
-   * when an origin is added or removed,reevaluate the hook
+   * When an origin is added or removed, reevaluate the hook
    */
   chrome.storage.onChanged.addListener((changes, _areaName) => {
     if (changes.originList && changes.originList.newValue) {
@@ -66,42 +68,73 @@ function main() {
   window.addEventListener("message", async (ev) => {
     const originList = await getOriginList()
     let url = new URL(window.location.href)
-
+    
     const originType = originList.includes(url.origin)
       ? "VALID_ORIGIN"
       : "UNKNOWN_ORIGIN"
-
+    
+    // Early return if not a valid source or origin
     if (ev.source !== window || !ev.data || originType != "VALID_ORIGIN") {
       return
     }
-
+    
     if (ev.data.type === "__POSTWOMAN_EXTENSION_REQUEST__") {
-      chrome.runtime.sendMessage(
-        {
-          messageType: "send-req",
-          data: ev.data.config,
-        },
-        (message) => {
-          if (message.data.error) {
-            window.postMessage(
-              {
-                type: "__POSTWOMAN_EXTENSION_ERROR__",
-                error: message.data.error,
-              },
-              "*"
-            )
-          } else {
-            window.postMessage(
-              {
-                type: "__POSTWOMAN_EXTENSION_RESPONSE__",
-                response: message.data.response,
-                isBinary: message.data.isBinary,
-              },
-              "*"
-            )
-          }
+      // Create a copy of the config to avoid modifying the original
+      const config = { ...ev.data.config };
+
+      if(config.file){
+        try{
+          //Convert File to base64
+          const fileBase64 = await new Promise((resolve,reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(config.file)
+          });
         }
-      )
+      }
+      
+      try {
+        chrome.runtime.sendMessage(
+          {
+            messageType: "send-req",
+            data: config,
+          },
+          (message) => {
+            if (message.data.error) {
+              window.postMessage(
+                {
+                  type: "__POSTWOMAN_EXTENSION_ERROR__",
+                  error: message.data.error,
+                },
+                "*"
+              )
+            } else {
+              window.postMessage(
+                {
+                  type: "__POSTWOMAN_EXTENSION_RESPONSE__",
+                  response: message.data.response,
+                  isBinary: message.data.isBinary,
+                },
+                "*"
+              )
+            }
+          }
+        )
+      } catch (error) {
+        console.error("Message sending error:", error);
+        window.postMessage(
+          {
+            type: "__POSTWOMAN_EXTENSION_ERROR__",
+            error: {
+              message: "Failed to send request",
+              name: "TransferError",
+              stack: error.stack
+            },
+          },
+          "*"
+        )
+      }
     } else if (ev.data.type === "__POSTWOMAN_EXTENSION_CANCEL__") {
       chrome.runtime.sendMessage({
         messageType: "cancel-req",
@@ -114,10 +147,6 @@ function main() {
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg.action === "__POSTWOMAN_EXTENSION_PING__") {
       sendResponse(true)
-    } else if (msg.action === "__POSTWOMAN_EXTENSION_REVOKE_OBJECT_URLS__") {
-      msg.objectURLsToRevoke.forEach((objectURL: string) => {
-        URL.revokeObjectURL(objectURL)
-      })
     }
   })
 }
