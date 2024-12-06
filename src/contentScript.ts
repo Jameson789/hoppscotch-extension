@@ -91,10 +91,20 @@ function main() {
             reader.onerror = reject;
             reader.readAsDataURL(config.file)
           });
+          
+          config.file = {
+            base64: fileBase64,
+            name: config.file.name,
+            type: config.file.type,
+            size: config.file.size
+          };
+        }
+        catch (error){
+
         }
       }
       
-      try {
+      try{
         chrome.runtime.sendMessage(
           {
             messageType: "send-req",
