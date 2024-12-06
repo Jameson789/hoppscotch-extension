@@ -83,19 +83,24 @@
           reader.onerror = (error) => reject(error)
         })
 
+      // Handle single File object
       if (config.data instanceof File) {
-        // firefox successfully sends the file object as is, but chrome malforms it
-        // so we're using objectURLs to access the file from the extension in chrome
-        if (process.env.HOPP_EXTENSION_TARGET === "CHROME") {
-          config.binaryContent = {
-            name: config.data.name,
-            // we'll convert the file to a url to access it from the extension
-            objectURL: URL.createObjectURL(config.data),
-          }
+        // Create a lightweight reference instead of full data
+        config.fileReference = {
+          name: config.data.name,
+          type: config.data.type,
+          size: config.data.size,
+          lastModified: config.data.lastModified,
+          objectURL: process.env.HOPP_EXTENSION_TARGET === "CHROME" 
+            ? URL.createObjectURL(config.data) 
+            : null
         }
+
+        // Explicitly set data to null to reduce message size
+        config.data = null
       }
 
-      // TODO: use objectURLs instead of base64
+      // Handle FormData with potential file uploads
       if (config.data instanceof FormData) {
         config.formFiles = []
         config.formData = []
@@ -104,12 +109,16 @@
 
         for (const [key, value] of entries) {
           if (value instanceof File) {
-            const convertedValue = await toBase64(value)
-
+            // Create a reference for each file
             config.formFiles.push({
               key: key,
-              value: convertedValue,
               filename: value.name,
+              type: value.type,
+              size: value.size,
+              lastModified: value.lastModified,
+              objectURL: process.env.HOPP_EXTENSION_TARGET === "CHROME" 
+                ? URL.createObjectURL(value) 
+                : null
             })
           } else {
             config.formData.push({
@@ -119,10 +128,13 @@
           }
         }
 
+        // Explicitly set data to null to reduce message size
         config.data = null
 
         return config
       }
+
+      return config
     },
 
     cancelRequest: (config) => {
@@ -188,7 +200,7 @@
             window.postMessage(
               {
                 type: "__POSTWOMAN_EXTENSION_REQUEST__",
-                config,
+                config: transformedConfig,
               },
               "*"
             )
