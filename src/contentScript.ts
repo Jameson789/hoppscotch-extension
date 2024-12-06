@@ -91,7 +91,7 @@ function main() {
             reader.onerror = reject;
             reader.readAsDataURL(config.file)
           });
-          
+
           config.file = {
             base64: fileBase64,
             name: config.file.name,
@@ -100,7 +100,15 @@ function main() {
           };
         }
         catch (error){
-
+          console.error("File conversion error: ", error)
+          window.postMessage(
+            {
+              type: "__POSTWOMAN_EXTENSION_ERROR__",
+              error: "File conversion failed",
+            },
+            "*"
+          );
+          return;
         }
       }
       
