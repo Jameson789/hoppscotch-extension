@@ -1,7 +1,5 @@
-import { rejects } from "assert"
 import hookContent from "bundle-text:./hookContent.js"
 import hookContentInvalidOrigin from "bundle-text:./hookContentInvalidOrigin.js"
-import { resolve } from "path"
 
 declare global {
   interface Window {
@@ -47,7 +45,6 @@ async function injectHoppExtensionHook() {
   }
 }
 
-
 function main() {
   // Check if the content script is already injected to avoid multiple injections side effects
   if (window.HOPP_CONTENT_SCRIPT_EXECUTED) {
@@ -81,38 +78,8 @@ function main() {
     if (ev.data.type === "__POSTWOMAN_EXTENSION_REQUEST__") {
       // Create a copy of the config to avoid modifying the original
       const config = { ...ev.data.config };
-
-      if(config.file){
-        try{
-          //Convert File to base64
-          const fileBase64 = await new Promise((resolve,reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(config.file)
-          });
-
-          config.file = {
-            base64: fileBase64,
-            name: config.file.name,
-            type: config.file.type,
-            size: config.file.size
-          };
-        }
-        catch (error){
-          console.error("File conversion error: ", error)
-          window.postMessage(
-            {
-              type: "__POSTWOMAN_EXTENSION_ERROR__",
-              error: "File conversion failed",
-            },
-            "*"
-          );
-          return;
-        }
-      }
       
-      try{
+      try {
         chrome.runtime.sendMessage(
           {
             messageType: "send-req",
